@@ -1,0 +1,9 @@
+Value PartID ([\w-]+)
+Value Serial ([\w-]+)
+Value Vendor (\w+)
+Value Required Descr ([\d\S]+)
+Value Name ([a-z]+)
+
+# lsblk -d --output NAME,SIZE,MODEL,SERIAL
+Start
+	^${Name}(\s*)${Descr}(\s*)${Vendor}[\s-]{1}${PartID}(\s*)${Serial} -> Record

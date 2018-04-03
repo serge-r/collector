@@ -1,0 +1,5 @@
+Template, Hostname, Vendor, Command, Function
+show_inventory.template, (.*), Cisco(.*), sh[[ow]] inv[[entory]], syncInventory
+dmidecode.template, (.*), Linux(.*), dmidecode, syncInventory
+lsblk.template, (.*), Linux(.*), lsblk, syncInventory
+ip_a.template,(.*), Linux(.*), ip_a, syncInterfaces

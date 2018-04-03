@@ -1,0 +1,17 @@
+# Get from https://github.com/networktocode/ntc-templates/blob/master/templates/cisco_ios_show_inventory.template
+Value Name (.*)
+Value Descr (.*)
+Value PartID (([\S+]+|.*))
+Value VID (.*)
+Value Serial ([\w+\d+]+)
+
+Start
+  ^NAME:\s+"${Name}",\s+DESCR:\s+"${Descr}"
+  ^PID:\s+${PartID}.*,.*VID:\s+${VID},.*SN:\s+${Serial} -> Record
+  ^PID:\s+,.*VID:\s+${VID},.*SN: -> Record
+  ^PID:\s+${PartID}.*,.*VID:\s+${VID},.*SN: -> Record
+  ^PID:\s+,.*VID:\s+${VID},.*SN:\s+${Serial} -> Record
+  ^PID:\s+${PartID}.*,.*VID:\s+${VID}.*
+  ^PID:\s+,.*VID:\s+${VID}.*
+  ^.*SN:\s+${Serial} -> Record
+  ^.*SN: -> Record

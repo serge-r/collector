@@ -1,0 +1,23 @@
+Value PartID (.*)
+Value Serial (.*)
+Value Required Vendor (.*)
+Value Descr (.*)
+Value Name (.*)
+
+Start
+	^Processor Information$$ -> Record PROCInfo
+	^Memory Device$$ -> Record MEMInfo
+
+PROCInfo
+	^(\s*)Socket Designation: ${Name}
+	^(\s*)Family: ${PartID}
+	^(\s*)Manufacturer: ${Vendor}
+	^(\s*)Version: ${Descr}
+	^(\s*)Serial Number: ${Serial} -> Start
+
+MEMInfo
+	^(\s*)Size: ${Descr}
+	^(\s*)Bank Locator: ${Name}
+	^(\s*)Manufacturer: ${Vendor}
+	^(\s*)Serial Number: ${Serial}
+	^(\s*)Part Number: ${PartID} -> Start
