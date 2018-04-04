@@ -3,6 +3,6 @@ __pycache__
 show_inventory.output
 parse_inventory.py
 example.sh
-testfile
-test
+testfile*
+test*
 serverlist_parse.py

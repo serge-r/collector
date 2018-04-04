@@ -1,9 +1,15 @@
 Value PartID ([\w-]+)
 Value Serial ([\w-]+)
 Value Vendor (\w+)
-Value Required Descr ([\d\S]+)
-Value Name ([a-z]+)
+Value Required Descr ([\d\.]+(\w)+)
+Value Required Name ([a-z]+)
 
-# lsblk -d --output NAME,SIZE,MODEL,SERIAL
+# In this template I put a size into description
+
 Start
+	# lsblk -d --output NAME,SIZE,MODEL,SERIAL
 	^${Name}(\s*)${Descr}(\s*)${Vendor}[\s-]{1}${PartID}(\s*)${Serial} -> Record
+	# lsblk -d --output NAME,SIZE
+	^${Name}(\s+)${Descr} -> Record
+	# lsblk -d
+	^${Name}(\s+)([\d:])+(\s+)(\d)+(\s*)${Descr}(\s+)(.*) -> Record
