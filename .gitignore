@@ -6,3 +6,4 @@ example.sh
 testfile*
 test*
 serverlist_parse.py
+client-local.py

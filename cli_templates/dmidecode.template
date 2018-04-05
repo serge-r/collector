@@ -3,21 +3,30 @@ Value Serial (.*)
 Value Required Vendor (.*)
 Value Descr (.*)
 Value Name (.*)
+Value Case ((Processor Information|Memory Device|Base Board Information))
 
 Start
-	^Processor Information$$ -> Record PROCInfo
-	^Memory Device$$ -> Record MEMInfo
-
-PROCInfo
-	^(\s*)Socket Designation: ${Name}
-	^(\s*)Family: ${PartID}
-	^(\s*)Manufacturer: ${Vendor}
-	^(\s*)Version: ${Descr}
-	^(\s*)Serial Number: ${Serial} -> Start
+	^${Case} -> Continue
+	^Base Board Information$$ -> Board 
+	^Processor Information$$ -> PROCInfo
+	^Memory Device$$ -> MEMInfo
 
 MEMInfo
 	^(\s*)Size: ${Descr}
 	^(\s*)Bank Locator: ${Name}
 	^(\s*)Manufacturer: ${Vendor}
 	^(\s*)Serial Number: ${Serial}
-	^(\s*)Part Number: ${PartID} -> Start
+	^(\s*)Part Number: ${PartID} -> Record Start
+
+Board
+	^(\s*)Manufacturer: ${Vendor}
+	^(\s*)Product Name: ${PartID}
+	^(\s*)Version: ${Descr}
+	^(\s*)Serial Number: ${Serial} -> Record Start
+
+PROCInfo
+	^(\s*)Socket Designation: ${Name}
+	^(\s*)Family: ${PartID}
+	^(\s*)Manufacturer: ${Vendor}
+	^(\s*)Version: ${Descr}
+	^(\s*)Serial Number: ${Serial} -> Record Start

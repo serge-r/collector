@@ -13,8 +13,8 @@ try:
 except:
     from urllib.request import urlopen, Request, URLError, HTTPError
 
-TOKEN='toketokentokentokentokentokne'
-URL='http://localhost:8000/api/collector/'
+TOKEN='tokentokentokentoken'
+URL='http://localhost/api/collector/'
 
 
 def sendRequest(hostname, command, result):

@@ -145,6 +145,12 @@ def syncInventory(device, invenory):
         descr = item['Descr']
         pid = item['PartID']
         serial = item['Serial']
+        # Additional field to process name
+        case = item['Case']
+
+        # Name or Case?
+        if not name:
+            name = case
 
         # Check if manufacturer is present
         if 'Vendor' in item.keys():
