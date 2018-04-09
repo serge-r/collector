@@ -1,12 +1,19 @@
 from dcim.models import Device, Interface, InterfaceConnection, InventoryItem, Manufacturer
+from ipam.models import IPAddress
+from netaddr import IPNetwork
+
 from dcim.constants import *
 from collector.settings import *
-from django.utils.log import DEFAULT_LOGGING
 import logging
+import logging.config
 import clitable
 import re
 
-logger = logging.getLogger('django.server')
+#DEBUG
+import pdb
+
+logger = logging.getLogger('collector')
+logging.config.dictConfig(LOGGING_CONFIG)
 
 
 def initParser():
@@ -129,8 +136,76 @@ def parseQuery(parser, query):
 
 
 def syncInterfaces(device, interfaces):
-    return (False, "Not implemented")
+    '''
+        Syncing interfaces
+        interfaces: list of lists
 
+        Vars:
+        interface['NAME'] - Name of interface
+        interface['MAC'] - Mac-Address
+        interface['IP'] - List of IP-address
+        interface['MTU'] - MTU
+        interface['DESCR'] - Description of interfaces
+        interface['TYPE'] - Physical type of interface (Default 1G-cooper - cannot get from linux)
+        interface['STATE'] - UP|DOWN
+
+        Returns: a tuple: (status: bool, message: string)
+    '''
+    for interface in interfaces:
+        name = interface.get('NAME')
+        mac = interface.get('MAC')
+        ips = interface.get('IP')
+        mtu = interface.get('MTU')
+        description = interface.get('DESCR')
+        iface_type = interface.get('TYPE')
+        iface_state = interface.get('STATE')
+        # Updated interface counter
+        count=0
+
+        # Get interface from device - for check if exst
+        ifaces = device.interfaces.filter(name = name)
+        if ifaces:
+            logger.info("Interface {} is exist on device {}, will update".format(name, device.name))
+            # TODO: I think, that only one item will be in filter, but need to add check for it
+            iface = ifaces[0]
+        else:
+            logger.info("Interface {} is not exist on device {}, will create new".format(name, device.name))
+            iface = Interface(name = name)
+            iface.device = device
+
+        logger.info("Will be save next parameters: Name:{name}, MAC: {mac}, MTU: {mtu}, Descr: {description}".format(
+                                                    name=name, mac=mac, mtu = mtu, description=description))
+        if description:
+            iface.description = description
+        iface.mac_address = mac
+
+        # MTU should be less 32767
+        if int(mtu) < 32767:
+            iface.mtu = mtu
+        # TODO: remake this default parameters
+        iface.enabled =  True
+        iface.form_factor = IFACE_FF_1GE_FIXED
+
+        try:
+            iface.save()
+        except Exception as e:
+            logger.error("Cannot save interface, error is {}".format(e))
+        else:
+            count+=1
+            logger.info("Interface {} was succesfully saved".format(name, device.name))
+
+        # IP syncing
+        if len(ips) > 0:
+            for address in ips:
+                addr = IPAddress()
+                addr.interface = iface
+                # TODO: Without v6 support yet
+                addr.address = IPNetwork(address)
+                addr.save()
+
+    if count==0:
+        return(False, "Can't update any inerface, see a log for details")
+    return(True, "Succesfully updated {} interfaces".format(count))
 
 def syncInventory(device, invenory):
     ''' Syncing Inventory in NetBox

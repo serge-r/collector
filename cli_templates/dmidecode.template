@@ -1,6 +1,6 @@
 Value PartID (.*)
-Value Serial (.*)
 Value Vendor (.*)
+Value Serial (.*)
 Value Required Descr (.*)
 Value Name (.*)
 Value Case ((Processor Information|Memory Device|Base Board Information))
