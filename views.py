@@ -7,7 +7,7 @@ import logging
 import logging.config
 import json
 
-parser = collector.initParser()
+parser = collector.init_parser()
 # Init logginig config
 logger = logging.getLogger('collector')
 
@@ -22,7 +22,7 @@ def index(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body.decode())
-            result, detail = collector.parseQuery(parser, data)
+            result, detail = collector.parse_query(parser, data)
             return Response({"result": result,
                              "detail": detail
                              })

@@ -246,7 +246,7 @@ if __name__ == '__main__':
     if conn == 0:
         print("Cannot sync without connection - exiting...")
         exit(-1)
-    # syncInterfaces(device, conn, iface_regex)
+    # sync_interfaces(device, conn, iface_regex)
 
     # sync inventory items
     sync_inventory(device, conn, parser)
