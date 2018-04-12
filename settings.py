@@ -1,16 +1,20 @@
-''' This is a settings file
-	!
+''' Base settings for collector app
+	
 '''
 # Directory, with TextFSM templates and index file
 TEMPLATES_DIRECTORY = 'collector/cli_templates'
 
+# MAX mtu for interfaces
+MAX_MTU = 32767
+
 # Configuration for logging
+# For change it - See Django documantation
+# Now set as debug logginng
 LOGGING_CONFIG = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
         'console': {
-            # exact format is not important, this is the minimum information
             'format': '%(asctime)s %(levelname)s %(filename)s[Line:%(lineno)d] %(message)s',
         },
     },

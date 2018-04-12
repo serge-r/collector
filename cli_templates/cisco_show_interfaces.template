@@ -1,13 +1,14 @@
 # Get from https://github.com/networktocode/ntc-templates/blob/master/templates/cisco_ios_show_interfaces.template
+# Add some modify
 
-Value Required INTERFACE (\S+)
-Value LINK_STATUS (\w+)
+Value Required NAME (\S+)
+Value STATE (\w+)
 Value PROTOCOL_STATUS (.*)
 Value HARDWARE_TYPE ([\w ]+)
-Value ADDRESS ([a-zA-Z0-9]+.[a-zA-Z0-9]+.[a-zA-Z0-9]+)
+Value MAC ([a-zA-Z0-9]+.[a-zA-Z0-9]+.[a-zA-Z0-9]+)
 Value BIA ([a-zA-Z0-9]+.[a-zA-Z0-9]+.[a-zA-Z0-9]+)
-Value DESCRIPTION (.*)
-Value IP_ADDRESS (\d+\.\d+\.\d+\.\d+\/\d+)
+Value DESCR (.*)
+Value IP (\d+\.\d+\.\d+\.\d+\/\d+)
 Value MTU (\d+)
 Value DUPLEX (.+?)
 Value SPEED (.+?)
@@ -19,11 +20,11 @@ Value INPUT_RATE (\d+)
 Value OUTPUT_RATE (\d+)
 
 Start
-  ^${INTERFACE} is ${LINK_STATUS}.*protocol is ${PROTOCOL_STATUS}
+  ^${NAME} is ${STATE}.*protocol is ${PROTOCOL_STATUS}
   ^\s+Hardware is ${HARDWARE_TYPE} -> Continue
-  ^.*address is ${ADDRESS}.*bia ${BIA}
-  ^\s+Description: ${DESCRIPTION}
-  ^\s+Internet address is ${IP_ADDRESS}
+  ^.*address is ${MAC}.*bia ${BIA}
+  ^\s+Description: ${DESCR}
+  ^\s+Internet address is ${IP}
   ^\s+MTU ${MTU}.*BW ${BANDWIDTH}.*DLY ${DELAY}
   ^\s+Encapsulation ${ENCAPSULATION}
   ^\s+Queueing strategy: ${QUEUE_STRATEGY}

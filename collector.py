@@ -180,7 +180,7 @@ def syncInterfaces(device, interfaces):
         iface.mac_address = mac
 
         # MTU should be less 32767
-        if int(mtu) < 32767:
+        if int(mtu) < MAX_MTU:
             iface.mtu = mtu
         # TODO: remake this default parameters
         iface.enabled =  True
@@ -206,6 +206,7 @@ def syncInterfaces(device, interfaces):
     if count==0:
         return(False, "Can't update any inerface, see a log for details")
     return(True, "Succesfully updated {} interfaces".format(count))
+
 
 def syncInventory(device, invenory):
     ''' Syncing Inventory in NetBox
@@ -259,6 +260,4 @@ def syncInventory(device, invenory):
         return (True, "Device {} synced succesfully".format(device.name))
     else:
         return {False, "Device {} was not synced. May be all items alredy exists?".format(device.name)}
-
-
 
