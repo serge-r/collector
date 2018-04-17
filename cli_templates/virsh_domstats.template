@@ -1,0 +1,19 @@
+Value NAME (\S+)
+Value MEM (\d+)
+Value VCPU (\d+)
+Value List DISKNAME (\w+)
+Value List DISKPATH (.*)
+Value List DISKSIZE (\d+)
+
+# TODO: Fix error, when empty disk path affects previous record
+
+Start
+  ^Domain: -> Continue.Record
+  ^Domain: '${NAME}'
+  ^(\s+)balloon\.maximum=${MEM}
+  ^(\s+)vcpu\.maximum=${VCPU}
+  ^(\s+)block\.(\d+)\.name=${DISKNAME}
+  ^(\s+)block\.(\d+)\.path=${DISKPATH}
+  ^(\s+)block\.(\d+)\.capacity=${DISKSIZE}
+
+

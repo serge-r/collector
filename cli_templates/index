@@ -3,3 +3,4 @@ show_inventory.template, (.*), Cisco(.*), sh[[ow]] inv[[entory]], sync_inventory
 dmidecode.template, (.*), Linux(.*), dmidecode, sync_inventory
 lsblk.template, (.*), Linux(.*), lsblk, sync_inventory
 ip_a.template,(.*), Linux(.*), ip_a, sync_interfaces
+virsh_domstats.template,(.*), Linux(.*), virsh_domstats, sync_vms

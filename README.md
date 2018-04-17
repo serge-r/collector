@@ -60,7 +60,7 @@ API allow only a simple JSON POST into url **/api/collector/**. :
 
 Also will be need setup a two headers:
 * **Content-Type: application/json**
-* **Authorization: Token tokenbigstring**
+* **Authorization: Token token_big_string**
 
 Possible to make a queries via curl utility:
 

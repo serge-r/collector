@@ -1,34 +1,33 @@
-from dcim.models import Device, Interface, InterfaceConnection, InventoryItem, Manufacturer
+from dcim.models import Device, Interface, InventoryItem, Manufacturer
 from ipam.models import IPAddress
+from virtualization.models import Cluster, VirtualMachine
 from netaddr import IPNetwork
 from dcim.constants import *
 from collector.settings import *
+from math import pow
 import logging
 import clitable
 import re
 
+# Init logginig settings
 logger = logging.getLogger('collector')
 logging.config.dictConfig(LOGGING_CONFIG)
 
 
-def init_parser():
-    """
-    Init CliTable index and templates
-        This function should be call first, before parsing
+def _get_cluster(device):
+    """ Return cluster object which assigned to device
 
-        Returns: cliTable object or None
+    TODO: Think that this function is not necessary
+
+    :param device: Netbox Device object
+    :return: Netbox Cluster object
     """
-    try:
-        parser = clitable.CliTable('index', TEMPLATES_DIRECTORY)
-        logger.info("Collector module loads: Im Alive!!!")
-    except Exception as e:
-        logger.error("Problem with parser init - check index file and templates directory. Error is %s", e)
-        return None
-    return parser
+    return device.cluster
+    pass
 
 
 def _get_process_function(parser, attrs):
-    """ Velosiped for return function from index file
+    """ 'Velosiped' for return function name from index file
         I believe, will possible make it as another simple method
         But now I cannot know how =\
 
@@ -51,7 +50,7 @@ def _get_process_function(parser, attrs):
 
 
 def _get_or_add_vendor(vendor_name):
-    """ Check is this Vendor present on Netbox
+    """ Check if this Vendor present on Netbox
 
         TODO: Add a save() check
 
@@ -87,13 +86,28 @@ def _get_device(hostname):
         return None
 
 
+def init_parser():
+    """
+    Init CliTable index and templates
+        This function should be call first, before parsing
+
+        :return: cliTable object or None
+    """
+    try:
+        parser = clitable.CliTable('index', TEMPLATES_DIRECTORY)
+        logger.info("Collector module loads: Im Alive!!!")
+    except Exception as e:
+        logger.error("Problem with parser init - check index file and templates directory. Error is %s", e)
+        return None
+    return parser
+
+
 def parse_query(parser, query):
     """ Parsing command output
 
     :param parser: clitable object
     :param query: Dict
     :return: Bool,String
-
     """
     try:
         command = query['Command']
@@ -116,9 +130,9 @@ def parse_query(parser, query):
 
     attrs = {"Command": command, "Vendor": vendor}
 
-    process_functon = _get_process_function(parser, attrs)
+    process_function = _get_process_function(parser, attrs)
 
-    if process_functon:
+    if process_function:
         # Its parsing time!
         try:
             parser.ParseCmd(data, attrs)
@@ -130,7 +144,7 @@ def parse_query(parser, query):
 
         if result:
             # Process It!
-            return process_functon(device, result)
+            return process_function(device, result)
         else:
             return False, "Cannot parse a command output - check template or command"
     else:
@@ -203,7 +217,7 @@ def sync_interfaces(device, interfaces):
             for address in ips:
                 addr = IPAddress()
                 addr.interface = iface
-                # TODO: Without v6 support yet
+                # TODO: Need a test ipv6 addresses
                 addr.address = IPNetwork(address)
                 addr.save()
 
@@ -213,10 +227,10 @@ def sync_interfaces(device, interfaces):
 
 
 def sync_inventory(device, inventory):
-    ''' Syncing Inventory in NetBox
+    """ Syncing Inventory in NetBox
 
-        Returns: a tuple: (status: bool, message: string)
-    '''
+        :return: status: bool, message: string
+    """
     is_changed = False
 
     for item in inventory:
@@ -264,3 +278,58 @@ def sync_inventory(device, inventory):
         return True, "Device {} synced successfully".format(device.name)
     else:
         return False, "Device {} was not synced. May be all items already exists?".format(device.name)
+
+
+def sync_vms(device, vms):
+    """ Syncing VirtualMachines from device
+
+    :param device:
+    :param vms:
+    :return:
+    """
+    if not vms:
+        return False, "There is no VM to update"
+    # TODO: cluster tenancy, role and platform
+    cluster = _get_cluster(device)
+    if cluster:
+        for vm_data in vms:
+            vm = VirtualMachine.objects.filter(name=vm_data['NAME'])
+            if vm:
+                logger.info("VM {} already exists. Will update this VM".format(vm_data['NAME']))
+                vm = vm[0]
+                vm.cluster = cluster
+            else:
+                # TODO: if VM was moved?
+                logger.info("VM {} is not exist. Will create new VM".format(vm_data['NAME']))
+                vm = VirtualMachine()
+                vm.cluster = cluster
+                vm.name = vm_data['NAME']
+            vm.memory = int(vm_data['MEM'])/1024 # its a simple method - we need a MB
+            vm.vcpus = int(vm_data['VCPU'])
+
+            # get disks
+            # I move it to one list of dict, because was an error when path is empty
+            # And I can cut off indexes
+            names = vm_data['DISKNAME']
+            sizes = vm_data['DISKSIZE']
+            paths = vm_data['DISKPATH']
+            keys = ['name', 'size', 'path']
+
+            # fill paths to size of names list
+            # for prevent lose disks with empty path
+            paths += ' ' * (len(names) - len(paths))
+
+            # I put disks into dict, because I cannot work with indexes
+            disks = [dict(zip(keys, item)) for item in zip(names, sizes, paths)]
+            total_size = 0
+            for disk in disks:
+                size = int(disk['size']) / pow(1024, 3)
+                vm.comments += "**Disk:** {}\t**Size:** {} GB\t**Path:** {}\n".format(disk['name'],
+                                                                                    int(size),
+                                                                                    disk['path'])
+                total_size += size
+            vm.disk = int(total_size)
+            vm.save()
+        return True, "VM successfully synced"
+    else:
+        return False, "Cannot determine cluster for device"
