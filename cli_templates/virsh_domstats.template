@@ -1,19 +1,22 @@
-Value NAME (\S+)
+Value Required NAME (\S+)
 Value MEM (\d+)
 Value VCPU (\d+)
-Value List DISKNAME (\w+)
-Value List DISKPATH (.*)
-Value List DISKSIZE (\d+)
+Value List DISKNAMES ((?P<diskindex>\d+)\.name=(?P<name>\w+))
+Value List DISKPATHS ((?P<diskindex>\d+)\.path=(?P<path>\S+))
+Value List,Required DISKSIZES ((?P<diskindex>\d+)\.capacity=(?P<size>\d+))
 
-# TODO: Fix error, when empty disk path affects previous record
+# Named group in regex will return dict like that
+# {'index': '1', 'name': 'hda'}
 
 Start
-  ^Domain: -> Continue.Record
   ^Domain: '${NAME}'
   ^(\s+)balloon\.maximum=${MEM}
   ^(\s+)vcpu\.maximum=${VCPU}
-  ^(\s+)block\.(\d+)\.name=${DISKNAME}
-  ^(\s+)block\.(\d+)\.path=${DISKPATH}
-  ^(\s+)block\.(\d+)\.capacity=${DISKSIZE}
+  ^(\s+)block\.${DISKNAMES}
+  ^(\s+)block\.${DISKPATHS}
+  ^(\s+)block\.${DISKSIZES}
+  ^$$ -> Record
+
+
 
 

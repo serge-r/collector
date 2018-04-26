@@ -1,10 +1,11 @@
-from dcim.models import Device, Interface, InventoryItem, Manufacturer
+from dcim.models import Device, Interface, InventoryItem, Manufacturer, Platform, DeviceRole
 from ipam.models import IPAddress
 from virtualization.models import Cluster, VirtualMachine
 from netaddr import IPNetwork
 from dcim.constants import *
 from collector.settings import *
 from math import pow
+import ast
 import logging
 import clitable
 import re
@@ -12,18 +13,6 @@ import re
 # Init logginig settings
 logger = logging.getLogger('collector')
 logging.config.dictConfig(LOGGING_CONFIG)
-
-
-def _get_cluster(device):
-    """ Return cluster object which assigned to device
-
-    TODO: Think that this function is not necessary
-
-    :param device: Netbox Device object
-    :return: Netbox Cluster object
-    """
-    return device.cluster
-    pass
 
 
 def _get_process_function(parser, attrs):
@@ -289,45 +278,79 @@ def sync_vms(device, vms):
     """
     if not vms:
         return False, "There is no VM to update"
+
     # TODO: cluster tenancy, role and platform
-    cluster = _get_cluster(device)
+    cluster = device.cluster
+    # By default all VMS - is a linux VMs
+    platform = Platform.objects.get(name='Linux')
+    # And server roles
+    role = DeviceRole.objects.get(name='Server')
+
+    # TODO: Need a get vm disks from vm objects
+    for vm_instance in vms:
+        pass
+
     if cluster:
         for vm_data in vms:
             vm = VirtualMachine.objects.filter(name=vm_data['NAME'])
             if vm:
                 logger.info("VM {} already exists. Will update this VM".format(vm_data['NAME']))
                 vm = vm[0]
-                vm.cluster = cluster
             else:
-                # TODO: if VM was moved?
                 logger.info("VM {} is not exist. Will create new VM".format(vm_data['NAME']))
                 vm = VirtualMachine()
-                vm.cluster = cluster
                 vm.name = vm_data['NAME']
+
+            vm.cluster = cluster
+            vm.platform = platform
+            vm.role = role
             vm.memory = int(vm_data['MEM'])/1024 # its a simple method - we need a MB
             vm.vcpus = int(vm_data['VCPU'])
 
             # get disks
-            # I move it to one list of dict, because was an error when path is empty
-            # And I can cut off indexes
-            names = vm_data['DISKNAME']
-            sizes = vm_data['DISKSIZE']
-            paths = vm_data['DISKPATH']
-            keys = ['name', 'size', 'path']
+            names = vm_data['DISKNAMES']
+            sizes = vm_data['DISKSIZES']
+            paths = vm_data['DISKPATHS']
 
-            # fill paths to size of names list
-            # for prevent lose disks with empty path
-            paths += ' ' * (len(names) - len(paths))
-
-            # I put disks into dict, because I cannot work with indexes
-            disks = [dict(zip(keys, item)) for item in zip(names, sizes, paths)]
+            # TODO: govnocode style - rewrite it for pythonic true way
+            disks = []
             total_size = 0
+            for name in names:
+                name = ast.literal_eval(name)
+                temp = name.copy()
+                index = temp.get('diskindex')
+                for size in sizes:
+                    size = ast.literal_eval(size)
+                    size_index = size.get('diskindex')
+                    if size_index == index:
+                        temp.update(size)
+                for path in paths:
+                    path = ast.literal_eval(path)
+                    path_index = path.get('diskindex')
+                    if path_index == index:
+                        temp.update(path)
+                disks.append(temp)
+                del temp  # non-urgent
+
+            logger.info("Disks is: {}, len is {}".format(disks, len(disks)))
+
+            # Filling VM comments with Disk Section
+            separator = "***\r\n"
+            # saving comments
+            try:
+                comments = vm.comments.split(separator)[1]
+            except:
+                comments = vm.comments
+            disk_string = ""
+            # and adding disks
             for disk in disks:
-                size = int(disk['size']) / pow(1024, 3)
-                vm.comments += "**Disk:** {}\t**Size:** {} GB\t**Path:** {}\n".format(disk['name'],
-                                                                                    int(size),
-                                                                                    disk['path'])
+                size = int(disk.get('size')) / pow(1024, 3)
+                disk_string += "**Disk:** {}\t**Size:** {} GB\t**Path:** {}\n".format(disk.get('name'),
+                                                                                      int(size),
+                                                                                      disk.get('path'))
                 total_size += size
+            disk_string += separator
+            vm.comments = disk_string + comments
             vm.disk = int(total_size)
             vm.save()
         return True, "VM successfully synced"

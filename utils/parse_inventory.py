@@ -14,6 +14,9 @@ print(attributes)
 cli_table.ParseCmd(input_file, attributes)
 keys = cli_table.header.values
 
+# print(cli_table)
+
 result = [dict(zip(keys,row)) for row in cli_table]
 
 pprint(result)
+print("Count: {}".format(len(result)))
