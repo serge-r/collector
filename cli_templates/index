@@ -4,3 +4,5 @@ dmidecode.template, (.*), Linux(.*), dmidecode, sync_inventory
 lsblk.template, (.*), Linux(.*), lsblk, sync_inventory
 ip_a.template,(.*), Linux(.*), ip_a, sync_interfaces
 virsh_domstats.template,(.*), Linux(.*), virsh_domstats, sync_vms
+cisco-nxos_show_interfaces.template,(.*), Cisco(.*), sh[[ow]] int[[erfaces]] nx, sync_interfaces
+cisco_show_interfaces.template,(.*), Cisco(.*), sh[[ow]] int[[erfaces]], sync_interfaces

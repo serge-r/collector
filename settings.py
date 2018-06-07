@@ -1,11 +1,16 @@
-''' Base settings for collector app
-	
-'''
+# Base settings for collector app
+
 # Directory, with TextFSM templates and index file
 TEMPLATES_DIRECTORY = 'collector/cli_templates'
 
 # MAX mtu for interfaces
 MAX_MTU = 32767
+
+# FILE to LOG
+LOGFILE = "/var/log/netbox/netbox.log"
+
+# LOGLEVEL
+LOGLEVEL = 'DEBUG'
 
 # Configuration for logging
 # For change it - See Django documantation
@@ -23,11 +28,16 @@ LOGGING_CONFIG = {
             'class': 'logging.StreamHandler',
             'formatter': 'console',
         },
+        'logfile': {
+            'class': 'logging.FileHandler',
+            'filename': LOGFILE,
+            'formatter': 'console',
+        },
     },
     'loggers': {
         'collector': {
-            'level': 'INFO',
-            'handlers': ['console'],
+            'level': LOGLEVEL,
+            'handlers': ['console', 'logfile'],
         },
     },
 }

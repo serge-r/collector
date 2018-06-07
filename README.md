@@ -9,10 +9,12 @@ For parsing data using a **clitable** functional from TextFSM (https://github.co
 Now implemented only next command parse:
 
 * Cisco IOS:
-	**show inventory**
+	* **show inventory**
 * Linux:
-	**dmidecode**
-	**lsblk -d** (with or without --output NAME,SIZE,MODEL,SERIAL)
+	* **dmidecode**
+	* **lsblk -d** (with or without **--output NAME,SIZE,MODEL,SERIAL**)
+	* **ip a**
+	* **virsh domstats** - for libvirt hypervisors
 
 ## Installation
 

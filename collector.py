@@ -98,6 +98,7 @@ def parse_query(parser, query):
     :param query: Dict
     :return: Bool,String
     """
+    logger.debug("parse_query: Starting parse query")
     try:
         command = query['Command']
         data = query['Data']
@@ -107,6 +108,7 @@ def parse_query(parser, query):
         return False, "Cannot parse a query - check all parameters"
 
     device = _get_device(hostname)
+    logger.debug("parse_query: Device is: {}".format(device))
 
     if not device:
         return False, "Not found device by hostname: {}".format(hostname)
@@ -118,18 +120,21 @@ def parse_query(parser, query):
         vendor = device.device_type.manufacturer.name
 
     attrs = {"Command": command, "Vendor": vendor}
-
+    logger.debug("parse_query: Will do it with next attrs: {}".format(attrs))
     process_function = _get_process_function(parser, attrs)
+    logger.debug("parse_query: Found process function {}".format(process_function))
 
     if process_function:
         # Its parsing time!
         try:
+            logger.debug("parse_query: Go to ParseCMD...")
             parser.ParseCmd(data, attrs)
         except Exception as e:
             return False, "Error while parsing. {}".format(e)
         # I will use a named indexes to prevent order changes
         keys = parser.header.values
         result = [dict(zip(keys, row)) for row in parser]
+        logger.debug("parse_query: Parser returns this: {}".format(result))
 
         if result:
             # Process It!
@@ -220,6 +225,7 @@ def sync_inventory(device, inventory):
 
         :return: status: bool, message: string
     """
+    logger.debug("sync_inventory: Running sync inventory")
     is_changed = False
 
     for item in inventory:
@@ -228,7 +234,10 @@ def sync_inventory(device, inventory):
         pid = item['PartID']
         serial = item['Serial']
         # Additional field to process name or device type
-        case = item['Case']
+        try:
+            case = item['Case']
+        except:
+            case = ''
 
         # Name or Case?
         if not name:

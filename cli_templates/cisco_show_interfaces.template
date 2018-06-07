@@ -1,6 +1,5 @@
 # Get from https://github.com/networktocode/ntc-templates/blob/master/templates/cisco_ios_show_interfaces.template
 # Add some modify
-
 Value Required NAME (\S+)
 Value STATE (\w+)
 Value PROTOCOL_STATUS (.*)
