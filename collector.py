@@ -1,4 +1,4 @@
-from dcim.models import Device, Interface, InventoryItem, Manufacturer, Platform, DeviceRole
+from dcim.models import Device, Interface, InterfaceConnection, InventoryItem, Manufacturer, Platform, DeviceRole
 from ipam.models import IPAddress
 from virtualization.models import Cluster, VirtualMachine
 from netaddr import IPNetwork
@@ -73,6 +73,82 @@ def _get_device(hostname):
     except Exception as e:
         logger.error("Cannot get device. Error is: ".format(e))
         return None
+
+
+def _compare_interfaces(src_iface, dst_iface):
+    ''' This function compare shortest interface name
+        with longest interface name.
+
+        EXAMPLE:
+        eth0/1 should match Ethernet0/1
+    '''
+    regex = '([a-z\-]+)([\d/\.]+)'
+    regex = re.compile(regex, re.I)
+    try:
+        src_name, src_number = regex.match(src_iface).groups()
+        dst_name, dst_number = regex.match(dst_iface).groups()
+    except:
+        return False
+
+    nameMatch = src_name.lower().startswith(dst_name.lower())
+    return ((src_number == dst_number) and nameMatch)
+
+
+def _connect_interface(interface):
+    ''' Get iface connection from iface description
+        Description should be like "server|port"
+    '''
+    desc_regex = "^(.*)+\|(.*)+"
+    desc_regex = re.compile(desc_regex)
+
+    iface_descr = interface.description
+
+    if desc_regex.match(iface_descr):
+        asset_tag, server_port = iface_descr.split('|')
+
+        server = Device.objects.filter(asset_tag = asset_tag)
+        if server:
+            server = server[0]
+            server_name = server.name
+
+            # Find and compare ports
+            for iface in server.interfaces.all():
+                if _compare_interfaces(iface.name, server_port):
+                    port = iface
+                else:
+                    port = None
+
+            port = server.interfaces.filter(name = server_port)
+            if port:
+                conn = InterfaceConnection()
+                conn.interface_a = interface
+                conn.interface_b = port[0]
+                try:
+                    conn.save()
+                except Exception as e:
+                    logger.error("Cannot do a connection {} to {} on {} - error is {}".format(interface.name, server_name, server_port, e))
+                    return
+                logger.info("Successfully connected interface {} to server {} on port {}".format(interface.name, server_name, server_port))
+            else:
+                logger.warning("Cannot found interface {} on server {}".format(server_port, server_name))
+        else:
+            logger.warning("Cannot find server by AssetTag {}".format(asset_tag))
+    else:
+        logger.info("Incorrect or None description on interface {} - cannot connect anything".format(interface.name))
+
+
+def _get_interface_type(if_name):
+    ''' Determine iface type (simple)
+    '''
+    v_regex = re.compile(VIRTUAL_REGEX)
+    p_regex = re.compile(PORTCHANNEL_REGEX)
+    if v_regex.match(if_name) == None:
+        if p_regex.match(if_name) == None:
+            return IFACE_FF_1GE_FIXED # no way how to properly determine interface type =(
+        else:
+            return IFACE_FF_LAG
+    else:
+        return IFACE_FF_VIRTUAL
 
 
 def init_parser():
@@ -189,14 +265,17 @@ def sync_interfaces(device, interfaces):
             name=name, mac=mac, mtu=mtu, description=description))
         if description:
             iface.description = description
+        else:
+            iface.description = ''
         iface.mac_address = mac
 
         # MTU should be less 32767
         if int(mtu) < MAX_MTU:
             iface.mtu = mtu
-        # TODO: remake this default parameters
-        iface.enabled = True
-        iface.form_factor = IFACE_FF_1GE_FIXED
+
+        logger.info("Interface state is {}".format(iface_state))
+        iface.enabled = 'up' in iface_state.lower()
+        iface.form_factor = _get_interface_type(name)
 
         try:
             iface.save()
@@ -206,14 +285,26 @@ def sync_interfaces(device, interfaces):
             count += 1
             logger.info("Interface {} was succesfully saved".format(name, device.name))
 
+        try:
+            _connect_interface(iface)
+        except:
+            logger.error("Problem with connection function")
+
         # IP syncing
         if len(ips) > 0:
             for address in ips:
                 addr = IPAddress()
                 addr.interface = iface
+                logger.info("Address is: {}".format(addr))
                 # TODO: Need a test ipv6 addresses
-                addr.address = IPNetwork(address)
-                addr.save()
+                try:
+                    # tries to determine is this address exist
+                    if iface.ip_addresses.filter(address=address):
+                        continue
+                    addr.address = IPNetwork(address)
+                    addr.save()
+                except:
+                    logger.warning("Cannot set address {} on interface".format(address))
 
     if count == 0:
         return False, "Can't update any interface, see a log for details"
@@ -365,3 +456,5 @@ def sync_vms(device, vms):
         return True, "VM successfully synced"
     else:
         return False, "Cannot determine cluster for device"
+
+

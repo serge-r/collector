@@ -6,6 +6,12 @@ TEMPLATES_DIRECTORY = 'collector/cli_templates'
 # MAX mtu for interfaces
 MAX_MTU = 32767
 
+# regex for agregated interfaces
+PORTCHANNEL_REGEX = '(^([Pp]ort).*)|(^([Bb]ond).*)'
+
+# regex for virtual interfaces
+VIRTUAL_REGEX = '^([Vv]lan|[Dd]iler|[Vv]irtual|[Gg]re|[Tt]un).*|(.+\.\d+)'
+
 # FILE to LOG
 LOGFILE = "/var/log/netbox/netbox.log"
 
