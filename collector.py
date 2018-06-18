@@ -241,6 +241,15 @@ def sync_interfaces(device, interfaces):
     """
     # Updated interface counter
     count = 0
+
+    # Init interfaces filter
+    iface_filter = device.cf().get('Interfaces filter')
+    try:
+        iface_regex = re.compile(iface_filter)
+    except Exception as e:
+        logger.warning("Cannot parse regex for interface filter: {}".format(e))
+        iface_regex = re.compile('.*')
+
     for interface in interfaces:
         name = interface.get('NAME')
         mac = interface.get('MAC')
@@ -249,6 +258,13 @@ def sync_interfaces(device, interfaces):
         description = interface.get('DESCR')
         iface_type = interface.get('TYPE')
         iface_state = interface.get('STATE')
+        #TODO: add a bonding support
+        iface_master = interface.get('BOND')
+
+        # Check interface filter
+        if not iface_regex.match(name):
+            logger.debug("Iface {} not match with regex".format(name))
+            continue
 
         # Get interface from device - for check if exist
         ifaces = device.interfaces.filter(name=name)
