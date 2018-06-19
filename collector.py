@@ -482,7 +482,6 @@ def sync_vms(device, vms):
                 disk_string += "**Disk:** {}\t**Size:** {} GB\t**Path:** {}\n".format(disk.get('name'),
                                                                                   int(size),
                                                                                   disk.get('path'))
-                disk_string += "Please add any comments below\n"
                 total_size += size
             except Exception as e:
                 logger.warning("Cannot add disk {} - error is {}".format(disk.get('name'), e))
