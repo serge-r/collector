@@ -9,6 +9,9 @@ MAX_MTU = 32767
 # regex for agregated interfaces
 PORTCHANNEL_REGEX = '(^([Pp]ort).*)|(^([Bb]ond).*)'
 
+# Default cluster type
+DEFAULT_CLUSTER_TYPE = 'KVM'
+
 # regex for virtual interfaces
 VIRTUAL_REGEX = '^([Vv]lan|[Dd]iler|[Vv]irtual|[Gg]re|[Tt]un).*|(.+\.\d+)'
 

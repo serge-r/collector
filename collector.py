@@ -1,6 +1,6 @@
 from dcim.models import Device, Interface, InterfaceConnection, InventoryItem, Manufacturer, Platform, DeviceRole
 from ipam.models import IPAddress
-from virtualization.models import Cluster, VirtualMachine
+from virtualization.models import Cluster, VirtualMachine, ClusterType
 from netaddr import IPNetwork
 from dcim.constants import *
 from collector.settings import *
@@ -258,7 +258,7 @@ def sync_interfaces(device, interfaces):
         description = interface.get('DESCR')
         iface_type = interface.get('TYPE')
         iface_state = interface.get('STATE')
-        #TODO: add a bonding support
+        # TODO: add a bonding support
         iface_master = interface.get('BOND')
 
         # Check interface filter
@@ -395,8 +395,22 @@ def sync_vms(device, vms):
     if not vms:
         return False, "There is no VM to update"
 
-    # TODO: cluster tenancy, role and platform
+    # TODO: cluster tenancy
     cluster = device.cluster
+    if not cluster:
+        # Will create a new cluster
+        logger.debug("Creating a new cluster {}".format(device.name))
+        cluster = Cluster()
+        cluster.name = device.name
+        cluster.type = ClusterType.objects.get(name=DEFAULT_CLUSTER_TYPE)
+        cluster.site = device.site
+        logger.debug("Saving a cluster {}".format(device.name))
+        cluster.save()
+        cluster.devices.add(device)
+        cluster.save()
+        logger.debug("Device was added to cluster {}".format(device.name))
+
+    # TODO: role and platform
     # By default all VMS - is a linux VMs
     platform = Platform.objects.get(name='Linux')
     # And server roles
@@ -406,71 +420,78 @@ def sync_vms(device, vms):
     for vm_instance in vms:
         pass
 
-    if cluster:
-        for vm_data in vms:
-            vm = VirtualMachine.objects.filter(name=vm_data['NAME'])
-            if vm:
-                logger.info("VM {} already exists. Will update this VM".format(vm_data['NAME']))
-                vm = vm[0]
-            else:
-                logger.info("VM {} is not exist. Will create new VM".format(vm_data['NAME']))
-                vm = VirtualMachine()
-                vm.name = vm_data['NAME']
+    for vm_data in vms:
+        vm = VirtualMachine.objects.filter(name=vm_data['NAME'])
+        if vm:
+            logger.info("VM {} already exists. Will update this VM".format(vm_data['NAME']))
+            vm = vm[0]
+        else:
+            logger.info("VM {} is not exist. Will create new VM".format(vm_data['NAME']))
+            vm = VirtualMachine()
+            vm.name = vm_data['NAME']
 
-            vm.cluster = cluster
-            vm.platform = platform
-            vm.role = role
-            vm.memory = int(vm_data['MEM'])/1024 # its a simple method - we need a MB
-            vm.vcpus = int(vm_data['VCPU'])
+        vm.cluster = cluster
+        vm.platform = platform
+        vm.role = role
+        vm.memory = int(vm_data['MEM'])/1024 # its a simple method - we need a MB
+        vm.vcpus = int(vm_data['VCPU'])
 
-            # get disks
-            names = vm_data['DISKNAMES']
-            sizes = vm_data['DISKSIZES']
-            paths = vm_data['DISKPATHS']
+        # get disks
+        names = vm_data['DISKNAMES']
+        sizes = vm_data['DISKSIZES']
+        paths = vm_data['DISKPATHS']
 
-            # TODO: govnocode style - rewrite it for pythonic true way
-            disks = []
-            total_size = 0
-            for name in names:
-                name = ast.literal_eval(name)
-                temp = name.copy()
-                index = temp.get('diskindex')
-                for size in sizes:
-                    size = ast.literal_eval(size)
-                    size_index = size.get('diskindex')
-                    if size_index == index:
-                        temp.update(size)
-                for path in paths:
-                    path = ast.literal_eval(path)
-                    path_index = path.get('diskindex')
-                    if path_index == index:
-                        temp.update(path)
-                disks.append(temp)
-                del temp  # non-urgent
+        # TODO: govnocode style - rewrite it for pythonic true way
+        disks = []
+        total_size = 0
+        for name in names:
+            name = ast.literal_eval(name)
+            temp = name.copy()
+            index = temp.get('diskindex')
+            for size in sizes:
+                size = ast.literal_eval(size)
+                size_index = size.get('diskindex')
+                if size_index == index:
+                    temp.update(size)
+            for path in paths:
+                path = ast.literal_eval(path)
+                path_index = path.get('diskindex')
+                if path_index == index:
+                    temp.update(path)
+            disks.append(temp)
+            del temp  # non-urgent
 
-            logger.info("Disks is: {}, len is {}".format(disks, len(disks)))
+        logger.info("Disks is: {}, len is {}".format(disks, len(disks)))
 
-            # Filling VM comments with Disk Section
-            separator = "***\r\n"
-            # saving comments
+        # Filling VM comments with Disk Section
+        separator = "***\r\n"
+        # saving comments
+        # TODO: fixing adding comments with multiple separator
+        try:
+            logger.debug("Tries to detect if comments exist")
+            comments = separator.join(vm.comments.split(separator)[1:])
+        except:
+            logger.debug("Still no any other comments...")
+            comments = vm.comments
+        disk_string = ""
+        # and adding disks
+        for disk in disks:
             try:
-                comments = vm.comments.split(separator)[1]
-            except:
-                comments = vm.comments
-            disk_string = ""
-            # and adding disks
-            for disk in disks:
+                logger.debug("Size of disk {} is {}".format(disk.get('name'),disk.get('size')))
                 size = int(disk.get('size')) / pow(1024, 3)
                 disk_string += "**Disk:** {}\t**Size:** {} GB\t**Path:** {}\n".format(disk.get('name'),
-                                                                                      int(size),
-                                                                                      disk.get('path'))
+                                                                                  int(size),
+                                                                                  disk.get('path'))
+                disk_string += "Please add any comments below\n"
                 total_size += size
-            disk_string += separator
-            vm.comments = disk_string + comments
-            vm.disk = int(total_size)
-            vm.save()
-        return True, "VM successfully synced"
-    else:
-        return False, "Cannot determine cluster for device"
+            except Exception as e:
+                logger.warning("Cannot add disk {} - error is {}".format(disk.get('name'), e))
+        disk_string += separator
+        vm.comments = disk_string + comments
+        vm.disk = int(total_size)
+        logger.debug("Save VM: {}".format(vm.name))
+        vm.save()
+    return True, "VM successfully synced"
+
 
 

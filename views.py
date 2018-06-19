@@ -31,6 +31,7 @@ def index(request):
                             "detail": str(e)
                             })
     else:
+        # TODO: Add a list of supported commands
         return Response({"result": False,
                          "detail":"Use POST, Luke"
                          })
