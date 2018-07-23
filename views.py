@@ -3,7 +3,6 @@ from rest_framework.response import Response
 from rest_framework import permissions,authentication
 from rest_framework.renderers import BrowsableAPIRenderer, JSONRenderer
 from collector import collector
-import logging
 import logging.config
 import json
 
@@ -19,7 +18,7 @@ logger = logging.getLogger('collector')
 @permission_classes([permissions.IsAuthenticated])
 def index(request):
     # try:
-    if request.method == 'POST':
+    if request.method == "POST":
         try:
             data = json.loads(request.body.decode())
             result, detail = collector.parse_query(parser, data)
@@ -31,10 +30,9 @@ def index(request):
                             "detail": str(e)
                             })
     else:
-        # TODO: Add a list of supported commands
-        return Response({"result": False,
-                         "detail":"Use POST, Luke"
-                         })
+        return Response({"result": "False",
+                         "detail": "Use POST force, Luke..."
+                        })
 
 
 

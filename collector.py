@@ -8,6 +8,7 @@ from math import pow
 import ast
 import logging
 import clitable
+import json
 import re
 
 # Init logginig settings
@@ -38,26 +39,22 @@ def _get_process_function(parser, attrs):
             return func
 
 
-def _get_or_add_vendor(vendor_name):
+def _get_vendor(vendor_name):
     """ Check if this Vendor present on Netbox
-
-        TODO: Add a save() check
 
         :param vendor_name: String
         :rtype: object NetBox Manufacturer
     """
+    vendor_name = str(vendor_name).strip()
     man = Manufacturer.objects.filter(name__icontains=vendor_name)
     if man:
         # Get only first...
-        logger.info("Found a vendor {} - return it".format(vendor_name))
+        logger.debug("Found a vendor {} - return it".format(vendor_name))
         return man[0]
     else:
-        logger.info("Create a new vendor")
-        man = Manufacturer()
-        man.name = vendor_name
-        # Replace any non-word character to dash
-        man.slug = re.sub("\W+", "-", vendor_name)
-        man.save()
+        logger.debug("Cannot a vendor {} - will be a NoName".format(vendor_name))
+        # TODO: Add a check for NoName is exists or create it
+        man = Manufacturer.objects.get(name = "--- NoName ---")
         return man
 
 
@@ -151,6 +148,19 @@ def _get_interface_type(if_name):
         return IFACE_FF_VIRTUAL
 
 
+def _return_command_list(parser):
+    index = parser.index.index
+    keys = index.header.values
+    out = [dict(zip(keys, row)) for row in index]
+    result = {}
+
+    for item in out:
+        logger.debug("Find command: {}".format(item.get('Command')))
+        result[item.get('Command')] = item.get('Description')
+
+    return True, result
+
+
 def init_parser():
     """
     Init CliTable index and templates
@@ -174,52 +184,66 @@ def parse_query(parser, query):
     :param query: Dict
     :return: Bool,String
     """
-    logger.debug("parse_query: Starting parse query")
-    try:
-        command = query['Command']
-        data = query['Data']
-        hostname = query['Hostname']
-    except Exception as e:
-        logger.error("One or all params in query failed. Detail: {}".format(e))
-        return False, "Cannot parse a query - check all parameters"
+    logger.debug("parse_query: Starting parse query, data is {}, type is {}".format(query, type(query)))
 
-    device = _get_device(hostname)
-    logger.debug("parse_query: Device is: {}".format(device))
+    action = query['action']
 
-    if not device:
-        return False, "Not found device by hostname: {}".format(hostname)
+    if not action:
+        return False, "Not provided any actions"
 
-    # Get Device Vendor (by platform or type)
-    if device.platform:
-        vendor = device.platform.name
-    else:
-        vendor = device.device_type.manufacturer.name
+    # TODO: find a true way how to remake it
+    if action == 'get_help':
+        return _return_command_list(parser)
 
-    attrs = {"Command": command, "Vendor": vendor}
-    logger.debug("parse_query: Will do it with next attrs: {}".format(attrs))
-    process_function = _get_process_function(parser, attrs)
-    logger.debug("parse_query: Found process function {}".format(process_function))
+    elif action == 'sync':
+        hostlist = query['data']
 
-    if process_function:
-        # Its parsing time!
-        try:
-            logger.debug("parse_query: Go to ParseCMD...")
-            parser.ParseCmd(data, attrs)
-        except Exception as e:
-            return False, "Error while parsing. {}".format(e)
-        # I will use a named indexes to prevent order changes
-        keys = parser.header.values
-        result = [dict(zip(keys, row)) for row in parser]
-        logger.debug("parse_query: Parser returns this: {}".format(result))
+        for host in hostlist:
+            try:
+                command = host['command']
+                data = host['data']
+                hostname = host['hostname']
+            except Exception as e:
+                logger.error("One or all params in query failed. Detail: {}".format(e))
+                return False, "Cannot parse a query - check all parameters"
 
-        if result:
-            # Process It!
-            return process_function(device, result)
-        else:
-            return False, "Cannot parse a command output - check template or command"
-    else:
-        logger.warning("Cannot found a process function. Parser Agrs: {} Device: {}".format(attrs, device))
-        return False, "Function for process this command or for this vendor is not implemented yet =("
+            device = _get_device(hostname)
+            logger.debug("parse_query: Device is: {}".format(device))
+
+            if not device:
+                return False, "Not found device by hostname: {}".format(hostname)
+
+            # Get Device Vendor (by platform or type)
+            if device.platform:
+                vendor = device.platform.name
+            else:
+                vendor = device.device_type.manufacturer.name
+
+            attrs = {"Command": command, "Vendor": vendor}
+            logger.debug("parse_query: Will do it with next attrs: {}".format(attrs))
+            process_function = _get_process_function(parser, attrs)
+            logger.debug("parse_query: Found process function {}".format(process_function))
+
+            if process_function:
+                # Its parsing time!
+                try:
+                    logger.debug("parse_query: Go to ParseCMD...")
+                    parser.ParseCmd(data, attrs)
+                except Exception as e:
+                    return False, "Error while parsing. {}".format(e)
+                # I will use a named indexes to prevent order changes
+                keys = parser.header.values
+                result = [dict(zip(keys, row)) for row in parser]
+                logger.debug("parse_query: Parser returns this: {}".format(result))
+
+                if result:
+                    # Process It!
+                    return process_function(device, result)
+                else:
+                    return False, "Cannot parse a command output - check template or command"
+            else:
+                logger.warning("Cannot found a process function. Parser Agrs: {} Device: {}".format(attrs, device))
+                return False, "Function for process this command or for this vendor is not implemented yet =("
 
 
 def sync_interfaces(device, interfaces):
@@ -353,16 +377,16 @@ def sync_inventory(device, inventory):
         # Check if manufacturer is present
         if 'Vendor' in item.keys():
             if item['Vendor']:
-                manufacturer = _get_or_add_vendor(item['Vendor'])
+                manufacturer = _get_vendor(item['Vendor'])
             else:
                 manufacturer = None
         else:
             manufacturer = device.device_type.manufacturer
 
         # Check, if this item exists (by device, name and serial)
-        item = InventoryItem.objects.filter(device=device, name=name, serial=serial)
+        item = InventoryItem.objects.filter(device=device, name=name, serial=serial, discovered=True)
         if item:
-            logger.info("Device {} already have a item {}".format(device.name, name))
+            logger.info("Device {} already have a discovered item {}".format(device.name, name))
             continue
         else:
             logger.info("Tries to add a item {} on device {}".format(name, device.name))
@@ -373,6 +397,7 @@ def sync_inventory(device, inventory):
             item.serial = serial
             item.description = descr
             item.device = device
+            item.discovered = True
             try:
                 item.save()
                 is_changed = True
@@ -395,6 +420,8 @@ def sync_vms(device, vms):
     if not vms:
         return False, "There is no VM to update"
 
+
+
     # TODO: cluster tenancy
     cluster = device.cluster
     if not cluster:
@@ -410,10 +437,17 @@ def sync_vms(device, vms):
         cluster.save()
         logger.debug("Device was added to cluster {}".format(device.name))
 
+    # Set all current vms on cluster offline. before sync
+    current_vms = VirtualMachine.objects.filter(cluster = cluster)
+    logger.debug("Current VMs on cluster: {}".format(current_vms))
+    for vm in current_vms:
+        vm.status = DEVICE_STATUS_OFFLINE
+        vm.save()
+
     # TODO: role and platform
     # By default all VMS - is a linux VMs
     platform = Platform.objects.get(name='Linux')
-    # And server roles
+    # with server roles
     role = DeviceRole.objects.get(name='Server')
 
     # TODO: Need a get vm disks from vm objects
@@ -435,6 +469,9 @@ def sync_vms(device, vms):
         vm.role = role
         vm.memory = int(vm_data['MEM'])/1024 # its a simple method - we need a MB
         vm.vcpus = int(vm_data['VCPU'])
+        # Determine VM state
+        if int(vm_data['STATE']) == DEVICE_STATUS_ACTIVE:
+            vm.status = DEVICE_STATUS_ACTIVE
 
         # get disks
         names = vm_data['DISKNAMES']

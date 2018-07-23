@@ -17,6 +17,7 @@ PORTCHANNEL_REGEX = '^([Pp]ort).*'
 
 TEMPLATES_DIRECTORY = "cli_templates"
 
+
 def connectToDevice(device, login, password):
     ''' Connect to device using NAPALM drivers
     '''

@@ -1,6 +1,7 @@
 Value Required NAME (\S+)
 Value MEM (\d+)
 Value VCPU (\d+)
+Value STATE (\d)
 Value List DISKNAMES ((?P<diskindex>\d+)\.name=(?P<name>\w+))
 Value List DISKPATHS ((?P<diskindex>\d+)\.path=(?P<path>\S+))
 Value List,Required DISKSIZES ((?P<diskindex>\d+)\.capacity=(?P<size>\d+))
@@ -10,6 +11,7 @@ Value List,Required DISKSIZES ((?P<diskindex>\d+)\.capacity=(?P<size>\d+))
 
 Start
   ^Domain: '${NAME}'
+  ^(\s+)state\.state=${STATE}
   ^(\s+)balloon\.maximum=${MEM}
   ^(\s+)vcpu\.maximum=${VCPU}
   ^(\s+)block\.${DISKNAMES}

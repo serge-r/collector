@@ -1,8 +1,8 @@
-Template, Hostname, Vendor, Command, Function
-show_inventory.template, (.*), Cisco(.*), sh[[ow]] inv[[entory]], sync_inventory
-dmidecode.template, (.*), Linux(.*), dmidecode, sync_inventory
-lsblk.template, (.*), Linux(.*), lsblk, sync_inventory
-ip_a.template,(.*), Linux(.*), ip_a, sync_interfaces
-virsh_domstats.template,(.*), Linux(.*), virsh_domstats, sync_vms
-cisco-nxos_show_interfaces.template,(.*), Cisco(.*), sh[[ow]] int[[erfaces]] nx, sync_interfaces
-cisco_show_interfaces.template,(.*), Cisco(.*), sh[[ow]] int[[erfaces]], sync_interfaces
+Template, Hostname, Vendor, Command, Function, Description
+show_inventory.template, (.*), Cisco(.*), sh inv, sync_inventory, "Cisco IOS 'sh[ow] inv[entory]' command - add inventory items for device"
+dmidecode.template, (.*), Linux(.*), dmidecode, sync_inventory, "Linux 'dmidecode' command - add inventory items for device"
+lsblk.template, (.*), Linux(.*), lsblk, sync_inventory, "Linux 'lsblk -d' can - add disks into inventory items"
+ip_a.template,(.*), Linux(.*), ip a, sync_interfaces, "Linux 'ip a[ddress]' command - fill a network interfaces for device"
+virsh_domstats.template,(.*), Linux(.*), virsh_domstats, sync_vms, "Linux 'virsh domstats' command - return VMs info for hypervisors - create a cluster from device and add VMs to it; fill VMs info about mem; CPU; disks"
+cisco-nxos_show_interfaces.template,(.*), Cisco(.*), sh int nx, sync_interfaces, "Cisco NXOS 'sh[ow] in[terfaces]' command. Syncing network interface; using decsription for connect interfaces"
+cisco_show_interfaces.template,(.*), Cisco(.*), sh int, sync_interfaces, "Cisco IOS 'sh[ow] in[terfaces]' command. Syncing network interface; using decsription for connect interfaces"

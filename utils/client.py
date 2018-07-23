@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# TODO: test https connection
 from __future__ import unicode_literals
 import json
 import sys
 import os
 
-# python 2 or 3 compatability(test with 2.6 and 3.6)
+# python 2 or 3 compatability(tested with 2.6 and 3.6)
 try:
     from urllib2 import urlopen, Request, URLError, HTTPError
 except:
@@ -17,7 +16,7 @@ TOKEN='tokentokentokentoken'
 URL='http://localhost/api/collector/'
 
 
-def sendRequest(hostname, command, result):
+def send_request(hostname, command, result):
     '''
     Send request to NetBox server with auth and json
     '''
@@ -45,14 +44,14 @@ def sendRequest(hostname, command, result):
 def main():
     if len(sys.argv) < 3:
         print("Usage %s <hostname> <command>" % os.path.basename(__file__))
-        print("This will be read from standart input and sent it to server")
+        print("This will be read from standard input and sent it to server")
         return
     
     hostname = sys.argv[1]
     command = sys.argv[2]
     result = sys.stdin.read()
 
-    result = sendRequest(hostname, command, result)
+    result = send_request(hostname, command, result)
     print(result)
 
 
