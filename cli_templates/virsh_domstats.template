@@ -4,10 +4,10 @@ Value VCPU (\d+)
 Value STATE (\d)
 Value List DISKNAMES ((?P<diskindex>\d+)\.name=(?P<name>\w+))
 Value List DISKPATHS ((?P<diskindex>\d+)\.path=(?P<path>\S+))
-Value List,Required DISKSIZES ((?P<diskindex>\d+)\.capacity=(?P<size>\d+))
+Value List DISKSIZES ((?P<diskindex>\d+)\.capacity=(?P<size>\d+))
 
 # Named group in regex will return dict like that
-# {'index': '1', 'name': 'hda'}
+# {'diskindex': '1', 'name': 'hda'}
 
 Start
   ^Domain: '${NAME}'

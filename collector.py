@@ -420,8 +420,6 @@ def sync_vms(device, vms):
     if not vms:
         return False, "There is no VM to update"
 
-
-
     # TODO: cluster tenancy
     cluster = device.cluster
     if not cluster:
@@ -474,11 +472,14 @@ def sync_vms(device, vms):
             vm.status = DEVICE_STATUS_ACTIVE
 
         # get disks
-        names = vm_data['DISKNAMES']
-        sizes = vm_data['DISKSIZES']
-        paths = vm_data['DISKPATHS']
+        names = vm_data.get('DISKNAMES')
+        sizes = vm_data.get('DISKSIZES')
+        paths = vm_data.get('DISKPATHS')
 
         # TODO: govnocode style - rewrite it for pythonic true way
+        # This code parse a strings, like "{'diskindex': 1, 'name': 'sda'}"
+        # Convert it to pythonic code
+        # and split to one dict
         disks = []
         total_size = 0
         for name in names:

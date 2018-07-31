@@ -2,7 +2,7 @@ Value PartID ([\w-]+)
 Value Serial ([\w-]+)
 Value Vendor (\w+)
 Value Required Descr ([\d\.]+(\w)+)
-Value Required Name ([a-z]+)
+Value Required Name (\w+)
 
 # In this template I put a size into description
 

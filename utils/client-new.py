@@ -238,12 +238,17 @@ def _out_result(result):
 
 
 def main():
+    # velosiped for use when script running without any parameters
+    # TODO: found another solution
+    if len(sys.argv) == 1:
+        sys.argv.append('-h')
+
     args = _add_args()
+
     try:
         args.func(args)
     except AttributeError:
-        print("Error while processing agr function")
-        pass
+        exit(0)
 
 
 if __name__ == '__main__':
