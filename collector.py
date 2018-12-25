@@ -1,15 +1,37 @@
-from dcim.models import Device, Interface, InterfaceConnection, InventoryItem, Manufacturer, Platform, DeviceRole
-from ipam.models import IPAddress
+from dcim.models import Device, Interface, InventoryItem, Manufacturer, Platform, DeviceRole,Cable
 from virtualization.models import Cluster, VirtualMachine, ClusterType
+from ipam.models import IPAddress
+from textfsm import clitable
 from netaddr import IPNetwork
 from dcim.constants import *
 from collector.settings import *
 from math import pow
 import ast
 import logging
-import clitable
-import json
+# import json
 import re
+
+
+# Class dummies for see the changes into objects
+class __TempVm:
+    def __init__(self, name):
+        self.name = name
+        # self.status = DEVICE_STATUS_OFFLINE
+        self.cluster = None
+        # self.platform = Platform.objects.get(name='Linux')
+        # self.role = DeviceRole.objects.get(name='Server')
+        self.memory = 0
+        self.vcpus = 0
+        self.comments = ""
+        self.disk = 0
+
+    def __str__(self):
+        return self.name
+
+
+class __TempDevice:
+    pass
+
 
 # Init logginig settings
 logger = logging.getLogger('collector')
@@ -117,11 +139,11 @@ def _connect_interface(interface):
 
             port = server.interfaces.filter(name = server_port)
             if port:
-                conn = InterfaceConnection()
-                conn.interface_a = interface
-                conn.interface_b = port[0]
+                cable = Cable()
+                cable.termination_a = interface
+                cable.termination_b = port[0]
                 try:
-                    conn.save()
+                    cable.save()
                 except Exception as e:
                     logger.error("Cannot do a connection {} to {} on {} - error is {}".format(interface.name, server_name, server_port, e))
                     return
@@ -449,8 +471,8 @@ def sync_vms(device, vms):
     role = DeviceRole.objects.get(name='Server')
 
     # TODO: Need a get vm disks from vm objects
-    for vm_instance in vms:
-        pass
+    # for vm_instance in vms:
+    #     pass
 
     for vm_data in vms:
         vm = VirtualMachine.objects.filter(name=vm_data['NAME'])
