@@ -21,6 +21,9 @@ LOGFILE = "/var/log/netbox/netbox.log"
 # LOGLEVEL
 LOGLEVEL = 'DEBUG'
 
+# Separator strong for divide comments and disk information
+SEPARATOR = "***\r\n"
+
 # Configuration for logging
 # For change it - See Django documantation
 # Now set as debug logginng

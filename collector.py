@@ -16,10 +16,10 @@ import re
 class __TempVm:
     def __init__(self, name):
         self.name = name
-        # self.status = DEVICE_STATUS_OFFLINE
-        self.cluster = None
-        # self.platform = Platform.objects.get(name='Linux')
-        # self.role = DeviceRole.objects.get(name='Server')
+        self.status = DEVICE_STATUS_OFFLINE
+        self.cluster_id = None
+        self.platform_id = None
+        self.role_id = None
         self.memory = 0
         self.vcpus = 0
         self.comments = ""
@@ -31,6 +31,25 @@ class __TempVm:
 
 class __TempDevice:
     pass
+
+
+def _diff_objects(source, dest):
+
+    src_param = source.__dict__
+    dst_param = dest.__dict__
+
+    logger.debug("First object parameters is: {}".format(src_param))
+
+    diff_fields = set(src_param) ^ set(dst_param)
+
+    result_dict = {key: dst_param.get(key) for key in dst_param if key not in diff_fields}
+
+    logger.debug("Second object parameters is: {}".format(result_dict))
+
+    if result_dict == src_param:
+        return 1
+    else:
+        return 0
 
 
 # Init logginig settings
@@ -457,12 +476,19 @@ def sync_vms(device, vms):
         cluster.save()
         logger.debug("Device was added to cluster {}".format(device.name))
 
-    # Set all current vms on cluster offline. before sync
-    current_vms = VirtualMachine.objects.filter(cluster = cluster)
-    logger.debug("Current VMs on cluster: {}".format(current_vms))
-    for vm in current_vms:
-        vm.status = DEVICE_STATUS_OFFLINE
-        vm.save()
+    # Determine non-exists VMs and put it offline
+    new_vm_names = [ vm_data['NAME'] for vm_data in vms]
+    if new_vm_names:
+        logger.debug("New VMS: {}".format(new_vm_names))
+        non_exist_vms = VirtualMachine.objects.filter(cluster_id=cluster.id).exclude(name__in = new_vm_names)
+        logger.debug("VM which located in netbox, but non-exist on current cluster: {}".format(non_exist_vms))
+
+        if non_exist_vms:
+            for vm in non_exist_vms:
+                if vm.status != DEVICE_STATUS_STAGED:
+                    vm.status = DEVICE_STATUS_STAGED
+                    # vm.comments = vm.comments + "\n\nVM not exist on current cluster!\n"
+                    vm.save()
 
     # TODO: role and platform
     # By default all VMS - is a linux VMs
@@ -475,23 +501,20 @@ def sync_vms(device, vms):
     #     pass
 
     for vm_data in vms:
-        vm = VirtualMachine.objects.filter(name=vm_data['NAME'])
-        if vm:
-            logger.info("VM {} already exists. Will update this VM".format(vm_data['NAME']))
-            vm = vm[0]
-        else:
-            logger.info("VM {} is not exist. Will create new VM".format(vm_data['NAME']))
-            vm = VirtualMachine()
-            vm.name = vm_data['NAME']
 
-        vm.cluster = cluster
-        vm.platform = platform
-        vm.role = role
-        vm.memory = int(vm_data['MEM'])/1024 # its a simple method - we need a MB
-        vm.vcpus = int(vm_data['VCPU'])
+        temp_vm = __TempVm(vm_data.get('NAME'))
+
+        logger.debug("Will sync VM named: {}".format(temp_vm))
+
+        temp_vm.cluster_id = cluster.id
+        temp_vm.platform_id = platform.id
+        temp_vm.role_id = role.id
+        temp_vm.memory = int(vm_data['MEM'])/1024 # its a simple method - we need a MB
+        temp_vm.vcpus = int(vm_data['VCPU'])
+
         # Determine VM state
         if int(vm_data['STATE']) == DEVICE_STATUS_ACTIVE:
-            vm.status = DEVICE_STATUS_ACTIVE
+            temp_vm.status = DEVICE_STATUS_ACTIVE
 
         # get disks
         names = vm_data.get('DISKNAMES')
@@ -524,15 +547,23 @@ def sync_vms(device, vms):
         logger.info("Disks is: {}, len is {}".format(disks, len(disks)))
 
         # Filling VM comments with Disk Section
-        separator = "***\r\n"
+        separator = SEPARATOR
+
         # saving comments
         # TODO: fixing adding comments with multiple separator
+        # TODO: Change this
+        try:
+            original_comments = VirtualMachine.objects.get(name=temp_vm.name).comments
+        except:
+            logger.debug("Cannot find a VM for original comments")
+            original_comments = ""
         try:
             logger.debug("Tries to detect if comments exist")
-            comments = separator.join(vm.comments.split(separator)[1:])
+            comments = separator.join(original_comments.split(separator)[1:])
         except:
             logger.debug("Still no any other comments...")
-            comments = vm.comments
+            comments = original_comments
+
         disk_string = ""
         # and adding disks
         for disk in disks:
@@ -546,11 +577,47 @@ def sync_vms(device, vms):
             except Exception as e:
                 logger.warning("Cannot add disk {} - error is {}".format(disk.get('name'), e))
         disk_string += separator
-        vm.comments = disk_string + comments
-        vm.disk = int(total_size)
-        logger.debug("Save VM: {}".format(vm.name))
-        vm.save()
-    return True, "VM successfully synced"
+        temp_vm.comments = disk_string + comments
+        temp_vm.disk = int(total_size)
+
+        vm = VirtualMachine.objects.filter(name=temp_vm.name)
+
+        logger.debug("found VM: {}".format(vm))
+        logger.debug("VM Data: {}".format(vm.__dict__))
+
+        if vm:
+            logger.info("VM {} already exists. Will update this VM".format(temp_vm.name))
+            vm = vm[0]
+            if _diff_objects(temp_vm, vm) == 0:
+                vm.cluster_id = temp_vm.cluster_id
+                vm.status = temp_vm.status
+                vm.platform_id = temp_vm.platform_id
+                vm.role_id = temp_vm.role_id
+                vm.memory = temp_vm.memory
+                vm.vcpus = temp_vm.vcpus
+                vm.comments = temp_vm.comments
+                vm.disk = temp_vm.disk
+                vm.save()
+                logger.info("VM {} was updated".format(vm.name))
+            else:
+                logger.info("VM {} was not changed - nothing to change".format(temp_vm.name))
+        else:
+            logger.info("VM {} is not exist. Will create new VM".format(temp_vm.name))
+            vm = VirtualMachine()
+            vm.name = temp_vm.name
+            vm.status = temp_vm.status
+            vm.cluster_id = temp_vm.cluster_id
+            vm.platform_id = temp_vm.platform_id
+            vm.role_id = temp_vm.role_id
+            vm.memory = temp_vm.memory
+            vm.vcpus = temp_vm.vcpus
+            vm.comments = temp_vm.comments
+            vm.disk = temp_vm.disk
+            vm.save()
+
+            logger.info("Saved new VM: {}".format(vm.name))
+
+    return True, "VMs successfully synced"
 
 
 
